@@ -14,6 +14,7 @@ db = SQLAlchemy(app)
 class MidiFile(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     filename = db.Column(db.String(100), nullable=False)
+    genre = db.Column(db.String(50), nullable=False)  # ジャンルを追加
 
 # アップロードフォルダの作成
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
@@ -21,23 +22,34 @@ if not os.path.exists(app.config['UPLOAD_FOLDER']):
 
 @app.route('/')
 def index():
-    files = MidiFile.query.all()
-    return render_template('index.html', files=files)
+    genre_filter = request.args.get('genre', '')
+    genres = db.session.query(MidiFile.genre).distinct()
+    if genre_filter:
+        files = MidiFile.query.filter_by(genre=genre_filter).all()
+    else:
+        files = MidiFile.query.all()
+    return render_template('index.html', files=files, genres=[g[0] for g in genres], selected_genre=genre_filter)
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
         return redirect(request.url)
+
     file = request.files['file']
-    if file.filename == '':
+    genre = request.form.get('genre')  # フォームからジャンルを取得
+
+    if file.filename == '' or not genre:
         return redirect(request.url)
+
     if file:
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
-        new_file = MidiFile(filename=filename)
+
+        new_file = MidiFile(filename=filename, genre=genre)  # ジャンルを保存
         db.session.add(new_file)
         db.session.commit()
+
         return redirect(url_for('index'))
 
 @app.route('/download/<int:file_id>')
