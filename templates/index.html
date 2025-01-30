@@ -23,6 +23,7 @@
     
         <button type="submit" class="btn btn-primary">アップロード</button>
     </form>
+    <h2>アップロード済みのファイル</h2>
     <form action="/" method="get" class="mb-4">
         <label for="genre">ジャンルを選択:</label>
         <select name="genre" class="form-control mb-2" onchange="this.form.submit()">
@@ -32,7 +33,7 @@
             {% endfor %}
         </select>
     </form>
-    <h2>アップロード済みのファイル</h2>
+    
     <ul class="list-group">
         {% for file in files %}
             <li class="list-group-item">
