@@ -1,11 +1,20 @@
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
+from dotenv import load_dotenv
 import os
 
+# .env ファイルを読み込む
+load_dotenv()
+
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///midi_files.db'
+
+# 環境変数から設定を取得
+app.config['UPLOAD_FOLDER'] = os.getenv('UPLOAD_FOLDER', 'uploads')
+app.config['SQLALCHEMY_DATABASE_URI'] = (
+    f"postgresql://{os.getenv('POSTGRES_USER')}:{os.getenv('POSTGRES_PASSWORD')}"
+    f"@{os.getenv('POSTGRES_HOST')}:{os.getenv('POSTGRES_PORT')}/{os.getenv('POSTGRES_DB')}"
+)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -19,6 +28,10 @@ class MidiFile(db.Model):
 # アップロードフォルダの作成
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
+
+# **修正：Flask アプリコンテキスト内でデータベースを作成**
+with app.app_context():
+    db.create_all()
 
 @app.route('/')
 def index():
@@ -36,7 +49,7 @@ def upload_file():
         return redirect(request.url)
 
     file = request.files['file']
-    genre = request.form.get('genre')  # フォームからジャンルを取得
+    genre = request.form.get('genre')
 
     if file.filename == '' or not genre:
         return redirect(request.url)
@@ -46,7 +59,7 @@ def upload_file():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
 
-        new_file = MidiFile(filename=filename, genre=genre)  # ジャンルを保存
+        new_file = MidiFile(filename=filename, genre=genre)
         db.session.add(new_file)
         db.session.commit()
 
@@ -60,6 +73,4 @@ def download_file(file_id):
     return redirect(url_for('index'))
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
     app.run(debug=True)
